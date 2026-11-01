@@ -60,6 +60,7 @@ def load_questions(csv_path: str, skip_handouts: bool = True) -> List[Dict[str, 
                 {
                     "uid": f"{row.get('турнир', '')}#{row.get('номер вопроса', idx)}",
                     "tournament": (row.get("турнир") or "").strip(),
+                    "pack_dl": (row.get("уровень пакета") or "").strip(),
                     "number": (row.get("номер вопроса") or "").strip(),
                     "question": q_text,
                     "answer": answer,
@@ -135,15 +136,16 @@ class ChgkTelegramBot:
         self._save_state()
         return idx, chosen
 
-    def format_question_message(self, q: Dict[str, Any], include_spoiler: bool = False) -> str:
-        comp_str = f" · Взятие: {q['complexity_raw']}%" if q["complexity_raw"] else ""
-        header = f"<b>{html.escape(q['tournament'])}</b>\nВопрос №{html.escape(str(q['number']))}{comp_str}"
+    def format_question_message(self, q: Dict[str, Any]) -> str:
+        meta_parts = []
+        if q.get("pack_dl"):
+            meta_parts.append(f"Уровень пакета: {html.escape(q['pack_dl'])}")
+        meta_parts.append(f"Вопрос №{html.escape(str(q['number']))}")
+        if q.get("complexity_raw"):
+            meta_parts.append(f"Взятие: {html.escape(q['complexity_raw'])}%")
+        header = f"<b>{html.escape(q['tournament'])}</b>\n" + " · ".join(meta_parts)
         body = html.escape(q["question"])
-        msg = f"{header}\n\n{body}"
-        if include_spoiler:
-            ans = html.escape(q["answer"])
-            msg += f"\n\nОтвет: <tg-spoiler>{ans}</tg-spoiler>"
-        return msg
+        return f"{header}\n\n{body}"
 
     def handle_command(self, chat_id: int, text: str) -> None:
         cmd = text.split()[0].split("@")[0].lower()
@@ -187,7 +189,7 @@ class ChgkTelegramBot:
                 self._api("sendMessage", {"chat_id": chat_id, "text": "Подходящие вопросы не найдены."})
                 return
             idx, q = picked
-            msg = self.format_question_message(q, include_spoiler=False)
+            msg = self.format_question_message(q)
             keyboard = {
                 "inline_keyboard": [
                     [
@@ -219,8 +221,8 @@ class ChgkTelegramBot:
             q = self.by_id.get(idx)
             if q:
                 ans_text = (
-                    f"<b>Ответ</b> ({html.escape(q['tournament'])}, №{html.escape(str(q['number']))}):\n"
-                    f"<tg-spoiler>{html.escape(q['answer'])}</tg-spoiler>"
+                    f"<b>Ответ</b> ({html.escape(q['tournament'])}, вопрос №{html.escape(str(q['number']))}):\n"
+                    f"{html.escape(q['answer'])}"
                 )
                 self._api("sendMessage", {"chat_id": chat_id, "text": ans_text, "parse_mode": "HTML"})
             self._api("answerCallbackQuery", {"callback_query_id": cb_id})
