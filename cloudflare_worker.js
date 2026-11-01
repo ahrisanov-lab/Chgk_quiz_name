@@ -148,15 +148,18 @@ function pickQuestion(questions, level) {
   return filtered[Math.floor(Math.random() * filtered.length)];
 }
 
+const DEFAULT_DATA_URL =
+  "https://raw.githubusercontent.com/ahrisanov-lab/Chgk_quiz_name/main/questions.json";
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const token = env.TELEGRAM_BOT_TOKEN;
-    const dataUrl = env.DATA_URL;
+    const dataUrl = env.DATA_URL || DEFAULT_DATA_URL;
 
-    if (!token || !dataUrl) {
+    if (!token) {
       return new Response(
-        "Укажите переменные окружения TELEGRAM_BOT_TOKEN и DATA_URL в настройках Worker.",
+        "Укажите переменную окружения TELEGRAM_BOT_TOKEN в настройках Worker (Settings -> Variables and Secrets).",
         { status: 500 }
       );
     }
